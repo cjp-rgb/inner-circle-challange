@@ -7,18 +7,20 @@ STEP_STARTED     = "started"       # hit /start
 STEP_NAMED       = "named"         # gave name
 STEP_ROUTED      = "routed"        # chose new / existing
 STEP_INSTRUCTED  = "instructed"    # shown funding / transfer instructions
-STEP_CLAIMED     = "claimed"       # tapped "I've signed up & funded" / "requested transfer"
+STEP_AWAIT_UID   = "await_uid"     # tapped finish, now sending UID
+STEP_CLAIMED     = "claimed"       # submitted UID -> awaiting your verification
 STEP_APPROVED    = "approved"      # you approved -> in the groups
 STEP_REJECTED    = "rejected"
 
-STEP_ORDER = [STEP_STARTED, STEP_NAMED, STEP_ROUTED, STEP_INSTRUCTED, STEP_CLAIMED, STEP_APPROVED]
+STEP_ORDER = [STEP_STARTED, STEP_NAMED, STEP_ROUTED, STEP_INSTRUCTED, STEP_AWAIT_UID, STEP_CLAIMED, STEP_APPROVED]
 
 STEP_LABEL = {
     STEP_STARTED: "Started (watched welcome)",
     STEP_NAMED: "Gave name",
     STEP_ROUTED: "Chose route",
     STEP_INSTRUCTED: "Shown instructions",
-    STEP_CLAIMED: "Claims signed up & funded",
+    STEP_AWAIT_UID: "Signed up — sending UID",
+    STEP_CLAIMED: "UID submitted — verify deposit",
     STEP_APPROVED: "Approved — in groups",
     STEP_REJECTED: "Rejected",
 }
@@ -39,6 +41,7 @@ class DB:
                 username      TEXT,
                 name          TEXT,
                 route         TEXT,           -- 'new' | 'existing'
+                uid           TEXT,           -- Vantage account UID
                 step          TEXT NOT NULL DEFAULT 'started',
                 admin_msg_id  INTEGER,        -- the admin-chat message we edit as they progress
                 nudges_sent   TEXT NOT NULL DEFAULT '',  -- comma list of hours already sent
@@ -100,6 +103,13 @@ class DB:
         )
         await self._db.commit()
 
+    async def set_uid(self, user_id, uid):
+        await self._db.execute(
+            "UPDATE users SET uid=?, step=?, updated_at=? WHERE user_id=?",
+            (uid, STEP_CLAIMED, time.time(), user_id),
+        )
+        await self._db.commit()
+
     async def set_step(self, user_id, step):
         await self._db.execute(
             "UPDATE users SET step=?, updated_at=? WHERE user_id=?",
@@ -150,7 +160,8 @@ class DB:
         return {r["step"]: r["c"] for r in rows}
 
     async def stalled(self):
-        """Users not yet completed/approved/rejected, for nudge checks."""
+        """Users not yet completed/approved/rejected, for nudge checks.
+        (await_uid IS included — they signed up but didn't send UID, worth chasing.)"""
         cur = await self._db.execute(
             "SELECT * FROM users WHERE step NOT IN (?,?,?)",
             (STEP_APPROVED, STEP_REJECTED, STEP_CLAIMED),

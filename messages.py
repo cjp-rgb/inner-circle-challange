@@ -20,14 +20,19 @@ def kb_route():
 
 def kb_new_done():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ I've signed up & funded", callback_data="claim")],
+        [InlineKeyboardButton("✅ I've signed up", callback_data="finish")],
         [InlineKeyboardButton("I've got a question", callback_data="question")],
     ])
 
 def kb_transfer_done():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ I've requested the transfer", callback_data="claim")],
+        [InlineKeyboardButton("✅ I've requested the transfer", callback_data="finish")],
         [InlineKeyboardButton("Message Carson", url=_carson_url())],
+    ])
+
+def kb_uid_stuck():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("Can't find it? Message Carson", url=_carson_url())],
     ])
 
 def kb_after_claim():
@@ -83,11 +88,12 @@ def instructions_new(name):
     return (
         f"Easy, {name} — I'll walk you through it 👇\n\n"
         f"*1.* Open your account here:\n{C.VANTAGE_LINK}\n\n"
-        "*2.* ✅ Tick *both* boxes and hit proceed — this is how you're linked to the challenge, so don't skip it\n\n"
+        "*2.* ✅ Tick *both* boxes and hit proceed — *we don't use the other version*\n\n"
         "*3.* Choose a *Standard STP account*\n\n"
         f"*4.* Fund it with a minimum of *{C.MIN_DEPOSIT}* — your money, stays yours\n\n"
-        f"You've got until *{C.DEADLINE_TEXT}* to get set up. Take your time, do it properly.\n\n"
-        "Done it? 👇"
+        f"⏳ You've got until *{C.DEADLINE_TEXT}* to fund your account — don't leave it too late. "
+        "If you're not funded yet, get it sorted before the window closes.\n\n"
+        "Signed up? Tap below to finish 👇"
     )
 
 def instructions_transfer(name):
@@ -98,17 +104,33 @@ def instructions_transfer(name):
         f"*3.* Enter code: *{C.IB_CODE}*\n"
         f"*4.* Name: *{C.IB_NAME}*\n"
         "*5.* Submit the request\n\n"
-        f"Then make sure you're funded with a minimum of *{C.MIN_DEPOSIT}*.\n\n"
-        "Transfers sometimes need a quick manual check — any snag, just message me 👇"
+        f"Then make sure you're funded with a minimum of *{C.MIN_DEPOSIT}* — and get it done before *{C.DEADLINE_TEXT}*.\n\n"
+        "Transfers sometimes need a quick manual check — any snag, just message me.\n\n"
+        "Requested it? Tap below to finish 👇"
+    )
+
+def ask_uid(name):
+    return (
+        f"Almost there, {name} 🙌\n\n"
+        "Last step — I need your *Vantage account number (UID)* so we can confirm your deposit and get you in.\n\n"
+        "📍 *Where to find it:* log in to Vantage → *top left, your profile* → your account number/UID is there.\n\n"
+        "Paste it below 👇 (just the number)"
+    )
+
+def uid_invalid():
+    return (
+        "Hmm, that doesn't look like a valid UID — it should be a number (usually 6–9 digits).\n\n"
+        "Have another look (Vantage → top left → profile) and paste just the number. "
+        "Stuck? Message Carson and he'll help 👇"
     )
 
 def claimed_ack(name):
     return (
-        f"Brilliant work, {name} 🙌\n\n"
-        "Carson's going to verify everything, then you'll be let straight into "
+        f"Brilliant work, {name} 🙌 you're all set on your end.\n\n"
+        "Carson's going to verify your account and deposit, then you'll be let straight into "
         "*The Challenge Room* and *The Social Challenge Room*.\n\n"
         "This usually doesn't take long — you'll get a message here the moment you're approved. 🔥\n\n"
-        "Can't wait? Message Carson directly to get your invite 👇"
+        "Can't wait? Message Carson directly 👇"
     )
 
 def approved_msg(name):

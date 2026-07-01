@@ -21,11 +21,13 @@ def status_text(row):
     lines = [
         f"{icon} *Onboarding — {label}*",
         _name_line(row),
-        f"🆔 `{row['user_id']}`",
+        f"🆔 tg: `{row['user_id']}`",
         f"Route: {route}",
     ]
+    if row["uid"]:
+        lines.append(f"💳 *Vantage UID: `{row['uid']}`*  ← verify deposit")
     if step == DB.STEP_CLAIMED:
-        lines.append("\n➡️ *Verify their deposit, then Approve.*")
+        lines.append("\n➡️ *Check this UID funded ≥ min, then Approve.*")
     return "\n".join(lines)
 
 async def push_or_update(app, db, user_id):
@@ -60,9 +62,10 @@ async def alert_completion(app, db, user_id):
     name = row["name"] or "Someone"
     uname = f"@{row['username']}" if row["username"] else ""
     route = {"new": "new signup", "existing": "transfer"}.get(row["route"] or "", "")
+    uid_line = f"\n💳 Vantage UID: `{row['uid']}`" if row["uid"] else ""
     await app.bot.send_message(
         chat_id=C.ADMIN_GROUP_ID,
-        text=(f"🟡 *ACTION NEEDED* — {name} {uname} says they're set up ({route}).\n"
-              f"Verify the deposit, then approve. `/approve {user_id}`"),
+        text=(f"🟡 *ACTION NEEDED* — {name} {uname} finished onboarding ({route}).{uid_line}\n"
+              f"Verify the deposit on that UID, then approve. `/approve {user_id}`"),
         parse_mode=ParseMode.MARKDOWN,
     )

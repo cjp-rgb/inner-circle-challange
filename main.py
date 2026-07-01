@@ -110,34 +110,57 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await db.set_step(uid, DB.STEP_INSTRUCTED)
         await ADMIN.push_or_update(context.application, db, uid)
 
-    elif data == "claim":
-        await db.set_step(uid, DB.STEP_CLAIMED)
+    elif data == "finish":
+        # they've signed up / requested transfer — now collect UID
+        await db.set_step(uid, DB.STEP_AWAIT_UID)
         await db.reset_nudges(uid)
         name = user_name(row, update)
         await context.bot.send_message(
-            uid, CP.claimed_ack(name), parse_mode=ParseMode.MARKDOWN,
+            uid, CP.ask_uid(name), parse_mode=ParseMode.MARKDOWN,
+            reply_markup=CP.kb_uid_stuck(), disable_web_page_preview=True,
+        )
+        context.user_data["awaiting_uid"] = True
+        await ADMIN.push_or_update(context.application, db, uid)
+
+
+async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    text = (update.message.text or "").strip()
+
+    # --- capturing UID ---
+    if context.user_data.get("awaiting_uid"):
+        digits = "".join(ch for ch in text if ch.isdigit())
+        if len(digits) < 5 or len(digits) > 12:
+            await update.message.reply_text(
+                CP.uid_invalid(), reply_markup=CP.kb_uid_stuck()
+            )
+            return
+        await db.set_uid(uid, digits)
+        context.user_data["awaiting_uid"] = False
+        await db.reset_nudges(uid)
+        row = await db.get(uid)
+        name = row["name"] or "there"
+        await update.message.reply_text(
+            CP.claimed_ack(name), parse_mode=ParseMode.MARKDOWN,
             reply_markup=CP.kb_after_claim(),
         )
         await ADMIN.push_or_update(context.application, db, uid)
         await ADMIN.alert_completion(context.application, db, uid)
-
-
-async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # only used to capture the name
-    if not context.user_data.get("awaiting_name"):
         return
-    uid = update.effective_user.id
-    name = (update.message.text or "").strip()[:40]
-    if not name:
-        await update.message.reply_text("Just pop your name in 👇")
+
+    # --- capturing name ---
+    if context.user_data.get("awaiting_name"):
+        name = text[:40]
+        if not name:
+            await update.message.reply_text("Just pop your name in 👇")
+            return
+        await db.set_name(uid, name)
+        context.user_data["awaiting_name"] = False
+        await update.message.reply_text(
+            CP.route_question(name), parse_mode=ParseMode.MARKDOWN, reply_markup=CP.kb_route()
+        )
+        await ADMIN.push_or_update(context.application, db, uid)
         return
-    await db.set_name(uid, name)
-    context.user_data["awaiting_name"] = False
-    row = await db.get(uid)
-    await update.message.reply_text(
-        CP.route_question(name), parse_mode=ParseMode.MARKDOWN, reply_markup=CP.kb_route()
-    )
-    await ADMIN.push_or_update(context.application, db, uid)
 
 
 # ---------------- approval ----------------
