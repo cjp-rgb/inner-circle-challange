@@ -57,6 +57,28 @@ class DB:
             """
         )
         await self._db.commit()
+        await self._migrate()
+
+    async def _migrate(self):
+        """Add any columns missing from an older existing database (CREATE TABLE
+        IF NOT EXISTS won't add columns to a table that already exists)."""
+        cur = await self._db.execute("PRAGMA table_info(users)")
+        cols = {row["name"] for row in await cur.fetchall()}
+        wanted = {
+            "username": "TEXT",
+            "name": "TEXT",
+            "route": "TEXT",
+            "uid": "TEXT",
+            "step": "TEXT NOT NULL DEFAULT 'started'",
+            "admin_msg_id": "INTEGER",
+            "nudges_sent": "TEXT NOT NULL DEFAULT ''",
+        }
+        for col, decl in wanted.items():
+            if col not in cols:
+                # SQLite can't add NOT NULL without default retroactively; strip if needed
+                safe_decl = decl
+                await self._db.execute(f"ALTER TABLE users ADD COLUMN {col} {safe_decl}")
+        await self._db.commit()
 
     async def close(self):
         if self._db:
