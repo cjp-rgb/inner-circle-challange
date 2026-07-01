@@ -76,7 +76,7 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     row = await db.get(uid)
 
     if data == "go":
-        await db.set_step(uid, DB.STEP_STARTED)
+        await db.set_step(uid, DB.STEP_AWAIT_NAME)
         await db.reset_nudges(uid)
         await context.bot.send_message(uid, CP.ASK_NAME)
         context.user_data["awaiting_name"] = True
@@ -126,9 +126,16 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = (update.message.text or "").strip()
+    row = await db.get(uid)
+    if not row:
+        # they typed before /start — gently point them
+        await update.message.reply_text("Tap /start to begin your onboarding 👇")
+        return
 
-    # --- capturing UID ---
-    if context.user_data.get("awaiting_uid"):
+    step = row["step"]
+
+    # --- capturing UID (step-driven, survives restarts) ---
+    if step == DB.STEP_AWAIT_UID:
         digits = "".join(ch for ch in text if ch.isdigit())
         if len(digits) < 5 or len(digits) > 12:
             await update.message.reply_text(
@@ -138,7 +145,6 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await db.set_uid(uid, digits)
         context.user_data["awaiting_uid"] = False
         await db.reset_nudges(uid)
-        row = await db.get(uid)
         name = row["name"] or "there"
         await update.message.reply_text(
             CP.claimed_ack(name), parse_mode=ParseMode.MARKDOWN,
@@ -148,8 +154,8 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await ADMIN.alert_completion(context.application, db, uid)
         return
 
-    # --- capturing name ---
-    if context.user_data.get("awaiting_name"):
+    # --- capturing name (step-driven) ---
+    if step == DB.STEP_AWAIT_NAME or context.user_data.get("awaiting_name"):
         name = text[:40]
         if not name:
             await update.message.reply_text("Just pop your name in 👇")
@@ -161,6 +167,23 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await ADMIN.push_or_update(context.application, db, uid)
         return
+
+    # --- otherwise: off-flow typing; nudge to the right button ---
+    if step == DB.STEP_STARTED:
+        await update.message.reply_text("Tap *Let's go 🚀* above to begin 👆", parse_mode=ParseMode.MARKDOWN)
+    elif step in (DB.STEP_NAMED, DB.STEP_ROUTED):
+        await update.message.reply_text("Tap one of the buttons above to carry on 👆")
+    elif step == DB.STEP_INSTRUCTED:
+        await update.message.reply_text(
+            "When you've signed up, tap *✅ I've signed up* above to finish 👆",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    elif step == DB.STEP_CLAIMED:
+        await update.message.reply_text(
+            "You're all done on your end — Carson's verifying now. Sit tight 🔥"
+        )
+    elif step == DB.STEP_APPROVED:
+        await update.message.reply_text("You're already in 🎉 check your groups above!")
 
 
 # ---------------- approval ----------------

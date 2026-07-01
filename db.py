@@ -4,6 +4,7 @@ import time
 
 # Step constants (ordered) — used for funnel + nudges
 STEP_STARTED     = "started"       # hit /start
+STEP_AWAIT_NAME  = "await_name"    # tapped Let's go, now typing name
 STEP_NAMED       = "named"         # gave name
 STEP_ROUTED      = "routed"        # chose new / existing
 STEP_INSTRUCTED  = "instructed"    # shown funding / transfer instructions
@@ -12,10 +13,11 @@ STEP_CLAIMED     = "claimed"       # submitted UID -> awaiting your verification
 STEP_APPROVED    = "approved"      # you approved -> in the groups
 STEP_REJECTED    = "rejected"
 
-STEP_ORDER = [STEP_STARTED, STEP_NAMED, STEP_ROUTED, STEP_INSTRUCTED, STEP_AWAIT_UID, STEP_CLAIMED, STEP_APPROVED]
+STEP_ORDER = [STEP_STARTED, STEP_AWAIT_NAME, STEP_NAMED, STEP_ROUTED, STEP_INSTRUCTED, STEP_AWAIT_UID, STEP_CLAIMED, STEP_APPROVED]
 
 STEP_LABEL = {
     STEP_STARTED: "Started (watched welcome)",
+    STEP_AWAIT_NAME: "Entering name",
     STEP_NAMED: "Gave name",
     STEP_ROUTED: "Chose route",
     STEP_INSTRUCTED: "Shown instructions",
